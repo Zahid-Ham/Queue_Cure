@@ -37,6 +37,9 @@ const io = new socket_io_1.Server(httpServer, {
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
 });
+app.get('/', (req, res) => {
+    res.status(200).json({ status: 'successful', message: 'QueueCure Backend Service is active and online' });
+});
 // Import DB client
 const db_1 = require("./db");
 app.post('/api/register', async (req, res) => {

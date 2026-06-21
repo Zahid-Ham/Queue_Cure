@@ -40,6 +40,10 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'successful', message: 'QueueCure Backend Service is active and online' });
+});
+
 // Import DB client
 import { db } from './db';
 
