@@ -1102,6 +1102,24 @@ export default function ReceptionistDashboard() {
                       )}
 
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <button
+                          onClick={() => handleShowPatientQr(patient)}
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 705,
+                            background: "var(--brand-light)",
+                            color: "var(--brand)",
+                            border: "1px solid var(--brand-mid)",
+                            padding: "6px 12px",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <span>🔍</span> QR
+                        </button>
                         {isServing ? (
                           <button onClick={() => handleMarkDone(patient.token)} style={{ fontSize: 11, fontWeight: 700, background: "var(--emerald)", color: "#fff", padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer" }}>✓ {t.DONE}</button>
                         ) : (
