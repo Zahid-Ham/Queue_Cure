@@ -20,6 +20,18 @@ function LoginContent() {
     setError("");
     setLoading(true);
 
+    if (role === "display") {
+      if (!hospitalId) {
+        setError("Please enter a Hospital ID");
+        setLoading(false);
+        return;
+      }
+      const slug = hospitalId.toLowerCase().replace(/[^a-z0-9-]/g, "");
+      router.push(`/display?hospital=${slug}`);
+      setLoading(false);
+      return;
+    }
+
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
       const res = await fetch(`${backendUrl}/api/login`, {
@@ -92,9 +104,9 @@ function LoginContent() {
           {/* Role */}
           <div>
             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-              Your Role
+              Select View / Role
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setRole("receptionist")}
@@ -104,7 +116,7 @@ function LoginContent() {
                     : "border-stone-200 dark:border-slate-850 hover:bg-stone-100 dark:hover:bg-slate-900 text-slate-500 dark:text-slate-400"
                 }`}
               >
-                📋 Receptionist
+                📋 Desk
               </button>
               <button
                 type="button"
@@ -117,24 +129,37 @@ function LoginContent() {
               >
                 🩺 Doctor
               </button>
+              <button
+                type="button"
+                onClick={() => setRole("display")}
+                className={`py-2.5 rounded-xl text-xs font-bold border transition-all duration-300 ${
+                  role === "display"
+                    ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600"
+                    : "border-stone-200 dark:border-slate-850 hover:bg-stone-100 dark:hover:bg-slate-900 text-slate-500 dark:text-slate-400"
+                }`}
+              >
+                📺 TV Screen
+              </button>
             </div>
           </div>
 
           {/* PIN */}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-              4-Digit Access PIN
-            </label>
-            <input
-              type="password"
-              maxLength={4}
-              required
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-              placeholder="••••"
-              className="w-full text-center tracking-widest font-mono text-xl rounded-xl border border-stone-200 dark:border-slate-800 bg-stone-50 dark:bg-slate-950/60 px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all duration-300"
-            />
-          </div>
+          {role !== "display" && (
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                4-Digit Access PIN
+              </label>
+              <input
+                type="password"
+                maxLength={4}
+                required
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                placeholder="••••"
+                className="w-full text-center tracking-widest font-mono text-xl rounded-xl border border-stone-200 dark:border-slate-800 bg-stone-50 dark:bg-slate-950/60 px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all duration-300"
+              />
+            </div>
+          )}
 
           <button
             type="submit"

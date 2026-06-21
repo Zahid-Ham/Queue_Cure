@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { socket } from "@/lib/socket";
 import ThemeToggle from "@/app/components/ThemeToggle";
 import { translations } from "@/lib/translations";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 
 interface Patient {
   token: number;
@@ -38,7 +38,14 @@ function formatElapsed(seconds: number): string {
 
 function TVDisplayContent() {
   const searchParams = useSearchParams();
-  const hospitalParam = searchParams.get("hospital") || "clinic-001";
+  const hospitalParam = searchParams.get("hospital");
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!hospitalParam) {
+      router.push("/login?role=display");
+    }
+  }, [hospitalParam, router]);
 
   // Screen States
   const [isFullscreenActive, setIsFullscreenActive] = useState(false);
@@ -91,7 +98,7 @@ function TVDisplayContent() {
 
   // Queue State
   const [queueState, setQueueState] = useState<QueueState>({
-    clinicId: hospitalParam,
+    clinicId: hospitalParam || "",
     currentToken: null,
     queue: [],
     consultHistory: [],
@@ -295,6 +302,7 @@ function TVDisplayContent() {
 
   // Socket IO setup
   useEffect(() => {
+    if (!hospitalParam) return;
     socket.connect();
     socket.emit("join-clinic", { clinicId: hospitalParam });
 
@@ -412,6 +420,15 @@ function TVDisplayContent() {
   const maxDisplayCount = 8;
   const displayedWaiting = waitingPatients.slice(0, maxDisplayCount);
   const overflowCount = Math.max(0, waitingPatients.length - maxDisplayCount);
+
+  // Early loading return
+  if (!hospitalParam) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", background: "var(--bg)", color: "var(--text-1)" }}>
+        Redirecting to display login...
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: "var(--bg)", color: "var(--text-1)", height: "100vh", display: "flex", flexDirection: "column", fontFamily: "'Plus Jakarta Sans', Inter, system-ui, sans-serif", overflow: "hidden" }}>
