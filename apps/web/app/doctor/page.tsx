@@ -300,6 +300,15 @@ export default function DoctorDashboard() {
           >
             🌐 {lang === "en" ? "हिन्दी" : "English"}
           </button>
+          <button
+            onClick={() => {
+              sessionStorage.clear();
+              router.push("/login?role=doctor");
+            }}
+            className="px-3 py-1.5 rounded-lg text-[10px] font-bold border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-all duration-300 cursor-pointer flex items-center gap-1"
+          >
+            🚪 {lang === "en" ? "Logout" : "लॉगआउट"}
+          </button>
           <ThemeToggle />
           <div className="h-10 w-[1px] bg-slate-200 dark:bg-slate-800 transition-colors duration-300" />
           <div className="text-right">

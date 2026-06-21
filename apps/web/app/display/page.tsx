@@ -839,6 +839,33 @@ function TVDisplayContent() {
                     </button>
                   </div>
                 )}
+
+                {/* Exit to Login option */}
+                <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
+                  <button
+                    onClick={() => {
+                      sessionStorage.clear();
+                      router.push("/login?role=display");
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "12px 0",
+                      borderRadius: 10,
+                      background: "var(--rose-light)",
+                      color: "var(--rose)",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      border: "1px solid rgba(220,38,38,0.15)",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                    }}
+                  >
+                    🚪 {lang === "hi" ? "लॉगिन पर वापस जाएं" : "Exit to Login"}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </>

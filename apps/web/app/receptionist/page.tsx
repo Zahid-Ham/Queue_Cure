@@ -1218,26 +1218,52 @@ export default function ReceptionistDashboard() {
         </div>
 
         {/* Settings toggle */}
-        <button
-          onClick={() => setIsSettingsOpen(true)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 13,
-            fontWeight: 600,
-            color: "var(--text-2)",
-            background: "var(--surface-2)",
-            border: "1px solid var(--border)",
-            padding: "10px 16px",
-            borderRadius: 10,
-            cursor: "pointer",
-            transition: "all 140ms",
-          }}
-        >
-          <span>⚙️</span>
-          <span>{lang === "en" ? "Settings" : "सेटिंग्स"}</span>
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--text-2)",
+              background: "var(--surface-2)",
+              border: "1px solid var(--border)",
+              padding: "10px 16px",
+              borderRadius: 10,
+              cursor: "pointer",
+              transition: "all 140ms",
+            }}
+          >
+            <span>⚙️</span>
+            <span>{lang === "en" ? "Settings" : "सेटिंग्स"}</span>
+          </button>
+          
+          <button
+            onClick={() => {
+              sessionStorage.clear();
+              router.push("/login?role=receptionist");
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              fontWeight: 650,
+              color: "var(--rose)",
+              background: "var(--rose-light)",
+              border: "1px solid rgba(220,38,38,0.15)",
+              padding: "10px 16px",
+              borderRadius: 10,
+              cursor: "pointer",
+              transition: "all 140ms",
+            }}
+          >
+            <span>🚪</span>
+            <span>{lang === "en" ? "Logout" : "लॉगआउट"}</span>
+          </button>
+        </div>
       </footer>
 
       {/* ── Slide-over Settings Drawer ─────────────────────────────────────────── */}
