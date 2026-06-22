@@ -107,7 +107,7 @@ const portals = [
     href: "/receptionist",
     label: "Receptionist Portal",
     desc: "Register patients, manage state queue, customize wait limits",
-    badge: "PIN: 1234",
+    badge: undefined,
     accent: "var(--brand)",
     accentLight: "var(--brand-mid)",
     icon: (
@@ -118,7 +118,7 @@ const portals = [
     href: "/doctor",
     label: "Doctor Panel",
     desc: "Check waiting queue, call next in turn, log consultations",
-    badge: "PIN: 1234",
+    badge: undefined,
     accent: "#0284C7",
     accentLight: "rgba(2,132,199,0.08)",
     icon: (
