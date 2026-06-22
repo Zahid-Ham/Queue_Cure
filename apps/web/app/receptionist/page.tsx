@@ -73,6 +73,14 @@ export default function ReceptionistDashboard() {
   const [lang, setLang] = useState<"en" | "hi">("en");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // ── History Modal States ───────────────────────────────────────────────
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [historyPatients, setHistoryPatients] = useState<any[]>([]);
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+
   // ── TV Remote Control States ───────────────────────────────────────────
   const [tvLang, setTvLang] = useState<"en" | "hi">("en");
   const [tvVoice, setTvVoice] = useState(true);
@@ -97,6 +105,31 @@ export default function ReceptionistDashboard() {
     setLang(nextLang);
     localStorage.setItem("receptionist_lang", nextLang);
   };
+
+  const fetchHistory = async (dateStr: string) => {
+    if (!queueState.clinicId) return;
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const res = await fetch(`${backendUrl}/api/history?clinicId=${queueState.clinicId}&date=${dateStr}`);
+      if (!res.ok) {
+        throw new Error("Failed to fetch history");
+      }
+      const data = await res.json();
+      setHistoryPatients(data);
+    } catch (err: any) {
+      setHistoryError(err.message || "An error occurred");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isHistoryOpen) {
+      fetchHistory(selectedDate);
+    }
+  }, [selectedDate, isHistoryOpen]);
 
   const t = translations[lang];
 
@@ -1176,40 +1209,6 @@ export default function ReceptionistDashboard() {
                   </div>
                 </div>
               )}
-
-              {/* Served Patients */}
-              {filteredDonePatients.length > 0 && (
-                <div style={{ marginTop: 32, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
-                  <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-3)", marginBottom: 12 }}>
-                    {lang === "en" ? "Served Patients Today" : "आज के पूर्ण मरीज"}
-                  </h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {filteredDonePatients.map((patient) => (
-                      <div
-                        key={patient.token}
-                        style={{
-                          borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface-2)",
-                          padding: 12, display: "flex", alignItems: "center", justifyContent: "space-between",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <span style={{ fontSize: 12, color: "var(--emerald)", fontWeight: 750 }}>
-                            ✓ #{patient.token}
-                          </span>
-                          <span style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 650 }}>
-                            {patient.name}
-                          </span>
-                        </div>
-                        {patient.doneAt && (
-                          <span style={{ fontSize: 11, color: "var(--text-3)" }}>
-                            {new Date(patient.doneAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </section>
@@ -1277,6 +1276,30 @@ export default function ReceptionistDashboard() {
 
         {/* Settings toggle */}
         <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={() => {
+              setIsHistoryOpen(true);
+              fetchHistory(selectedDate);
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--brand)",
+              background: "var(--brand-light)",
+              border: "1px solid var(--brand-mid)",
+              padding: "10px 16px",
+              borderRadius: 10,
+              cursor: "pointer",
+              transition: "all 140ms",
+            }}
+          >
+            <span>📋</span>
+            <span>{lang === "en" ? "History" : "इतिहास"}</span>
+          </button>
+
           <button
             onClick={() => setIsSettingsOpen(true)}
             style={{
@@ -1699,6 +1722,213 @@ export default function ReceptionistDashboard() {
                 >
                   {t.CLOSE}
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Patient History Modal ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {isHistoryOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              key="history-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(0,0,0,0.5)",
+                backdropFilter: "blur(6px)",
+                WebkitBackdropFilter: "blur(6px)",
+              }}
+              onClick={() => setIsHistoryOpen(false)}
+            />
+
+            {/* Modal Box */}
+            <motion.div
+              key="history-modal"
+              initial={{ scale: 0.93, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.93, opacity: 0, y: 15 }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              style={{
+                position: "relative",
+                width: "100%",
+                maxWidth: 580,
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                boxShadow: "var(--shadow-2xl)",
+                borderRadius: 24,
+                padding: "24px 28px",
+                display: "flex",
+                flexDirection: "column",
+                maxHeight: "85vh",
+                overflow: "hidden",
+                zIndex: 10,
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                <div>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: "var(--text-1)" }}>
+                    📋 Patient History Logs
+                  </h3>
+                  <p style={{ fontSize: 11, color: "var(--text-3)", margin: "4px 0 0" }}>
+                    Select a date to view past patient consultations
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsHistoryOpen(false)}
+                  style={{
+                    height: 32, width: 32, borderRadius: 8,
+                    border: "1px solid var(--border)", background: "var(--surface-2)",
+                    color: "var(--text-2)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                    fontWeight: 700, fontSize: 13,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Filters Block */}
+              <div style={{ display: "flex", gap: 12, marginBottom: 18, alignItems: "center" }}>
+                {/* Date Picker */}
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    border: "1px solid var(--border)",
+                    background: "var(--surface-2)",
+                    color: "var(--text-1)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    outline: "none",
+                    cursor: "pointer",
+                  }}
+                />
+
+                {/* Search query inside history */}
+                <div style={{ flex: 1, position: "relative" }}>
+                  <input
+                    type="text"
+                    value={historySearchQuery}
+                    onChange={(e) => setHistorySearchQuery(e.target.value)}
+                    placeholder="Search by name, phone, or token..."
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px 10px 36px",
+                      borderRadius: 10,
+                      border: "1px solid var(--border)",
+                      background: "var(--surface-2)",
+                      color: "var(--text-1)",
+                      fontSize: 13,
+                      outline: "none",
+                    }}
+                  />
+                  <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "var(--text-3)", pointerEvents: "none" }}>
+                    🔍
+                  </span>
+                </div>
+              </div>
+
+              {/* History List Content */}
+              <div style={{ flex: 1, overflowY: "auto", minHeight: 0, paddingRight: 4 }}>
+                {historyLoading ? (
+                  <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-3)", fontWeight: 650 }}>
+                    <div style={{ display: "inline-block", height: 24, width: 24, border: "3px solid var(--brand)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite", marginBottom: 8 }} />
+                    <p style={{ margin: 0 }}>Loading patient history...</p>
+                  </div>
+                ) : historyError ? (
+                  <div style={{ textAlign: "center", padding: "40px 0", color: "var(--rose)", fontWeight: 600 }}>
+                    ❌ {historyError}
+                  </div>
+                ) : (() => {
+                  const filtered = historyPatients.filter(
+                    (p: any) => p.name.toLowerCase().includes(historySearchQuery.toLowerCase()) ||
+                           (p.phone && p.phone.includes(historySearchQuery)) ||
+                           String(p.token).includes(historySearchQuery)
+                  );
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-3)", fontWeight: 600 }}>
+                        No records found for the selected date.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {filtered.map((patient: any) => {
+                        const isDone = patient.status === "done";
+                        return (
+                          <div
+                            key={patient.token}
+                            style={{
+                              borderRadius: 12,
+                              border: "1px solid var(--border)",
+                              background: "var(--surface-2)",
+                              padding: "14px 16px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                            }}
+                          >
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  color: isDone ? "var(--emerald)" : "var(--amber)",
+                                  background: isDone ? "rgba(5,150,105,0.1)" : "rgba(217,119,6,0.1)",
+                                  padding: "2px 8px",
+                                  borderRadius: 6
+                                }}>
+                                  #{patient.token}
+                                </span>
+                                <strong style={{ fontSize: 14, color: "var(--text-1)" }}>
+                                  {patient.name}
+                                </strong>
+                              </div>
+                              {patient.phone && (
+                                <p style={{ fontSize: 11, color: "var(--text-3)", margin: "4px 0 0" }}>
+                                  📞 {patient.phone}
+                                </p>
+                              )}
+                            </div>
+
+                            <div style={{ textAlign: "right" }}>
+                              <span style={{
+                                fontSize: 10,
+                                fontWeight: 800,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.04em",
+                                color: isDone ? "var(--emerald)" : "var(--amber)",
+                                display: "block",
+                                marginBottom: 4
+                              }}>
+                                {isDone ? "Completed" : "Skipped"}
+                              </span>
+                              {patient.doneAt && (
+                                <span style={{ fontSize: 11, color: "var(--text-3)" }}>
+                                  Time: {new Date(patient.doneAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             </motion.div>
           </div>

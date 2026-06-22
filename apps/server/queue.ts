@@ -288,6 +288,14 @@ export async function callNext(
         const sum = state.consultHistory.reduce((a, b) => a + b, 0);
         state.avgConsultTime = sum / state.consultHistory.length;
       }
+
+      // Archive in PostgreSQL history table
+      try {
+        const { db } = require('./db');
+        await db.addHistoryEntry(clinicId, oldServing.token, oldServing.name, oldServing.phone, 'done', oldServing.addedAt, oldServing.doneAt);
+      } catch (dbErr) {
+        console.error('[QueueCure] Failed to write history entry on callNext:', dbErr);
+      }
     }
 
     // Find the next patient who is waiting
@@ -352,6 +360,15 @@ export async function markDone(
     }
 
     await saveQueueState(clinicId, state);
+
+    // Archive in PostgreSQL history table
+    try {
+      const { db } = require('./db');
+      await db.addHistoryEntry(clinicId, patient.token, patient.name, patient.phone, 'done', patient.addedAt, patient.doneAt);
+    } catch (dbErr) {
+      console.error('[QueueCure] Failed to write history entry on markDone:', dbErr);
+    }
+
     return state;
   } finally {
     await redis.del(lockKey);
@@ -367,10 +384,19 @@ export async function skipToken(clinicId: string, token: number): Promise<QueueS
   const patient = state.queue.find((p) => p.token === token);
   if (patient) {
     patient.status = 'skipped';
+    patient.doneAt = Date.now(); // Set skipped timestamp
     if (state.currentToken === token) {
       state.currentToken = null;
     }
     await saveQueueState(clinicId, state);
+
+    // Archive in PostgreSQL history table
+    try {
+      const { db } = require('./db');
+      await db.addHistoryEntry(clinicId, patient.token, patient.name, patient.phone, 'skipped', patient.addedAt, patient.doneAt);
+    } catch (dbErr) {
+      console.error('[QueueCure] Failed to write history entry on skipToken:', dbErr);
+    }
   }
 
   return state;

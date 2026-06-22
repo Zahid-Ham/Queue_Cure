@@ -47,6 +47,20 @@ app.get('/', (req, res) => {
 // Import DB client
 import { db } from './db';
 
+app.get('/api/history', async (req, res) => {
+  try {
+    const { clinicId, date } = req.query;
+    if (!clinicId || !date) {
+      res.status(400).json({ error: 'Missing required query parameters: clinicId and date' });
+      return;
+    }
+    const history = await db.getHistoryByDate(String(clinicId), String(date));
+    res.status(200).json(history);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Internal Server Error' });
+  }
+});
+
 app.post('/api/register', async (req, res) => {
   try {
     const { id, name, receptionistPin, doctorPin } = req.body;

@@ -5,6 +5,7 @@ const pg_1 = require("pg");
 // In-memory fallback database for local dev without postgres
 class InMemoryDb {
     hospitals = new Map();
+    history = [];
     constructor() {
         // Seed default clinic
         this.hospitals.set('clinic-001', {
@@ -21,6 +22,30 @@ class InMemoryDb {
         const hospital = { id, name, receptionistPin, doctorPin };
         this.hospitals.set(id, hospital);
         return hospital;
+    }
+    async addHistoryEntry(clinicId, token, name, phone, status, addedAt, doneAt) {
+        this.history.push({
+            clinic_id: clinicId,
+            token,
+            name,
+            phone,
+            status,
+            added_at: addedAt,
+            done_at: doneAt,
+            visit_date: new Date().toISOString().split('T')[0]
+        });
+    }
+    async getHistoryByDate(clinicId, dateStr) {
+        return this.history
+            .filter(h => h.clinic_id === clinicId && h.visit_date === dateStr)
+            .map(h => ({
+            token: h.token,
+            name: h.name,
+            phone: h.phone,
+            status: h.status,
+            addedAt: h.added_at,
+            doneAt: h.done_at
+        }));
     }
 }
 let dbInstance;
@@ -46,6 +71,13 @@ else {
             async createHospital(id, name, receptionistPin, doctorPin) {
                 await pool.query('INSERT INTO hospitals (id, name, receptionist_pin, doctor_pin) VALUES ($1, $2, $3, $4)', [id, name, receptionistPin, doctorPin]);
                 return { id, name, receptionistPin, doctorPin };
+            },
+            async addHistoryEntry(clinicId, token, name, phone, status, addedAt, doneAt) {
+                await pool.query('INSERT INTO patient_history (clinic_id, token, name, phone, status, added_at, done_at) VALUES ($1, $2, $3, $4, $5, $6, $7)', [clinicId, token, name, phone || null, status, addedAt, doneAt]);
+            },
+            async getHistoryByDate(clinicId, dateStr) {
+                const res = await pool.query('SELECT token, name, phone, status, added_at AS "addedAt", done_at AS "doneAt" FROM patient_history WHERE clinic_id = $1 AND visit_date = $2 ORDER BY done_at ASC', [clinicId, dateStr]);
+                return res.rows;
             }
         };
         // Auto-initialize schema
@@ -58,6 +90,18 @@ else {
             receptionist_pin CHAR(4) NOT NULL,
             doctor_pin CHAR(4) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE TABLE IF NOT EXISTS patient_history (
+            id SERIAL PRIMARY KEY,
+            clinic_id VARCHAR(50) NOT NULL,
+            token INT NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            phone VARCHAR(20),
+            status VARCHAR(20) NOT NULL,
+            added_at BIGINT NOT NULL,
+            done_at BIGINT NOT NULL,
+            visit_date DATE NOT NULL DEFAULT CURRENT_DATE
           );
         `);
                 console.log('PostgreSQL database initialized successfully.');
