@@ -994,9 +994,12 @@ export default function ReceptionistDashboard() {
             boxShadow: "var(--shadow-sm)",
             display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden"
           }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-1)", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h2
+              className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0"
+              style={{ fontSize: 16, fontWeight: 700, color: "var(--text-1)", marginBottom: 20 }}
+            >
               <span>📋 {t.CLINIC_QUEUE}</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="flex flex-wrap items-center gap-2" style={{ fontSize: 11 }}>
                 <button
                   type="button"
                   onClick={downloadCsvTemplate}
@@ -1090,9 +1093,9 @@ export default function ReceptionistDashboard() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -100 }}
                       transition={{ duration: 0.3 }}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0"
                       style={{
                         padding: 16, borderRadius: 12, border: "1px solid var(--border)",
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
                         background: isServing
                           ? "var(--emerald-light)"
                           : patient.priority
@@ -1139,46 +1142,48 @@ export default function ReceptionistDashboard() {
                         </div>
                       </div>
 
-                      {/* Wait Time display */}
-                      {!isServing && (
-                        <div style={{ marginLeft: "auto", marginRight: 16, textAlign: "right" }}>
-                          <span style={{ fontSize: 10, display: "block", fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                            {lang === "en" ? "Est. Wait" : "अनुमानित प्रतीक्षा"}
-                          </span>
-                          <span style={{ fontSize: 14, fontWeight: 800, color: "var(--brand)" }}>
-                            {(() => {
-                              const waitingPatients = queueState.queue.filter((p) => p.status === "waiting");
-                              const idx = waitingPatients.findIndex((p) => p.token === patient.token);
-                              return idx !== -1 ? getEstWaitTime(idx + 1) : "—";
-                            })()}
-                          </span>
-                        </div>
-                      )}
-
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <button
-                          onClick={() => handleShowPatientQr(patient)}
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 705,
-                            background: "var(--brand-light)",
-                            color: "var(--brand)",
-                            border: "1px solid var(--brand-mid)",
-                            padding: "6px 12px",
-                            borderRadius: 8,
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                          }}
-                        >
-                          <span>🔍</span> QR
-                        </button>
-                        {isServing ? (
-                          <button onClick={() => handleMarkDone(patient.token)} style={{ fontSize: 11, fontWeight: 700, background: "var(--emerald)", color: "#fff", padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer" }}>✓ {t.DONE}</button>
-                        ) : (
-                          <button onClick={() => handleSkip(patient.token)} style={{ fontSize: 11, fontWeight: 700, background: "var(--surface)", border: "1px solid var(--border)", padding: "6px 12px", borderRadius: 8, cursor: "pointer", color: "var(--text-2)" }}>{t.SKIP}</button>
+                      <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
+                        {/* Wait Time display */}
+                        {!isServing && (
+                          <div style={{ textAlign: "left" }} className="sm:text-right">
+                            <span style={{ fontSize: 10, display: "block", fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                              {lang === "en" ? "Est. Wait" : "अनुमानित प्रतीक्षा"}
+                            </span>
+                            <span style={{ fontSize: 14, fontWeight: 800, color: "var(--brand)", whiteSpace: "nowrap" }}>
+                              {(() => {
+                                const waitingPatients = queueState.queue.filter((p) => p.status === "waiting");
+                                const idx = waitingPatients.findIndex((p) => p.token === patient.token);
+                                return idx !== -1 ? getEstWaitTime(idx + 1) : "—";
+                              })()}
+                            </span>
+                          </div>
                         )}
+
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <button
+                            onClick={() => handleShowPatientQr(patient)}
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 705,
+                              background: "var(--brand-light)",
+                              color: "var(--brand)",
+                              border: "1px solid var(--brand-mid)",
+                              padding: "6px 12px",
+                              borderRadius: 8,
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            <span>🔍</span> QR
+                          </button>
+                          {isServing ? (
+                            <button onClick={() => handleMarkDone(patient.token)} style={{ fontSize: 11, fontWeight: 700, background: "var(--emerald)", color: "#fff", padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer" }}>✓ {t.DONE}</button>
+                          ) : (
+                            <button onClick={() => handleSkip(patient.token)} style={{ fontSize: 11, fontWeight: 700, background: "var(--surface)", border: "1px solid var(--border)", padding: "6px 12px", borderRadius: 8, cursor: "pointer", color: "var(--text-2)" }}>{t.SKIP}</button>
+                          )}
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -1230,22 +1235,20 @@ export default function ReceptionistDashboard() {
       </main>
 
       {/* ── Bottom Action Bar ────────────────────────────────────────────── */}
-      <footer style={{
-        borderTop: "1px solid var(--border)",
-        background: "var(--surface)",
-        padding: "16px 24px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        position: "sticky",
-        bottom: 0,
-        zIndex: 40,
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        gap: 16,
-        flexWrap: "wrap",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+      <footer
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        style={{
+          borderTop: "1px solid var(--border)",
+          background: "var(--surface)",
+          padding: "16px 24px",
+          position: "sticky",
+          bottom: 0,
+          zIndex: 40,
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }} className="w-full sm:w-auto grid grid-cols-2 sm:flex">
           {/* Call Next */}
           <button
             onClick={handleCallNext}
@@ -1262,12 +1265,13 @@ export default function ReceptionistDashboard() {
               boxShadow: "0 4px 14px rgba(79,70,229,0.25)",
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 8,
               transition: "all 140ms",
               opacity: queueState.isPaused ? 0.5 : 1,
             }}
           >
-            🔊 {t.CALL_NEXT}
+            <span>🔊</span> {t.CALL_NEXT}
           </button>
 
           {/* Pause / Resume */}
@@ -1283,6 +1287,9 @@ export default function ReceptionistDashboard() {
               background: queueState.isPaused ? "var(--amber-light)" : "var(--surface-2)",
               color: queueState.isPaused ? "var(--amber)" : "var(--text-2)",
               transition: "all 140ms",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
             {queueState.isPaused ? (lang === "en" ? "▶ Resume" : "▶ चालू करें") : (lang === "en" ? "⏸ Pause Queue" : "⏸ कतार रोकें")}
@@ -1290,7 +1297,7 @@ export default function ReceptionistDashboard() {
         </div>
 
         {/* Settings toggle */}
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ gap: 10 }} className="w-full sm:w-auto grid grid-cols-3 sm:flex">
           <button
             onClick={() => {
               setIsHistoryOpen(true);
@@ -1299,6 +1306,7 @@ export default function ReceptionistDashboard() {
             style={{
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 8,
               fontSize: 13,
               fontWeight: 600,
@@ -1320,6 +1328,7 @@ export default function ReceptionistDashboard() {
             style={{
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 8,
               fontSize: 13,
               fontWeight: 600,
@@ -1344,6 +1353,7 @@ export default function ReceptionistDashboard() {
             style={{
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 8,
               fontSize: 13,
               fontWeight: 650,

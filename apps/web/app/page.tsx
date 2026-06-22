@@ -162,7 +162,8 @@ export default function LandingPage() {
 
   useEffect(() => {
     const saved = localStorage.getItem("theme") as "light" | "dark" | null;
-    const initial = saved || "light";
+    const prefersDark = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const initial = saved || (prefersDark ? "dark" : "light");
     setTheme(initial);
     if (initial === "dark") document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
@@ -229,7 +230,7 @@ export default function LandingPage() {
               height: 38, padding: "0 18px", borderRadius: 10,
               background: "var(--brand)",
               color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none",
-              display: "inline-flex", alignItems: "center", gap: 6,
+              alignItems: "center", gap: 6,
               boxShadow: "0 4px 14px rgba(79,70,229,0.30)",
               transition: "all 140ms",
             }}
