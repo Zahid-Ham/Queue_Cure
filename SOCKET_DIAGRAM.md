@@ -68,17 +68,17 @@ sequenceDiagram
     participant Redis
     participant All as All Screens (Room)
 
-    R->>S: call-next { clinicId, receptionistPin }
-    S->>Redis: SET lock:{clinicId} NX EX 3
+    R->>S: "call-next { clinicId, receptionistPin }"
+    S->>Redis: "SET lock:{clinicId} NX EX 3"
     Redis-->>S: OK (lock acquired)
-    S->>Redis: GET queue:{clinicId}
+    S->>Redis: "GET queue:{clinicId}"
     Redis-->>S: QueueState JSON
     S->>S: Mark current serving → done (record duration)
     S->>S: Find next waiting → serving
-    S->>Redis: SET queue:{clinicId} (updated state)
-    S->>Redis: DEL lock:{clinicId} (release lock)
-    S->>All: queue-update { currentToken, queue, ... }
-    S->>All: token-called { token, name, estimatedWait }
+    S->>Redis: "SET queue:{clinicId} (updated state)"
+    S->>Redis: "DEL lock:{clinicId} (release lock)"
+    S->>All: "queue-update { currentToken, queue, ... }"
+    S->>All: "token-called { token, name, estimatedWait }"
     S->>S: setTimeout 5000ms (undo window)
     Note over R: Undo banner appears with 5s countdown
 ```
@@ -94,13 +94,13 @@ sequenceDiagram
 
     R1->>S: call-next
     R2->>S: call-next
-    S->>Redis: SET lock:{clinicId} NX EX 3
+    S->>Redis: "SET lock:{clinicId} NX EX 3"
     Redis-->>S: OK (R1 wins lock)
-    S->>Redis: SET lock:{clinicId} NX EX 3
+    S->>Redis: "SET lock:{clinicId} NX EX 3"
     Redis-->>S: null (R2 rejected — lock held)
-    S->>R2: queue-error { message: "busy" }
+    S->>R2: "queue-error { message: 'busy' }"
     Note over R1: R1 completes normally
-    S->>Redis: DEL lock:{clinicId}
+    S->>Redis: "DEL lock:{clinicId}"
 ```
 
 ### 3. Mark Done (PostgreSQL Persist & Real Duration Recording)
@@ -112,16 +112,16 @@ sequenceDiagram
     participant Redis
     participant PG as PostgreSQL
 
-    R->>S: mark-done { clinicId, token, receptionistPin }
-    S->>Redis: SET lock:{clinicId} NX EX 3
+    R->>S: "mark-done { clinicId, token, receptionistPin }"
+    S->>Redis: "SET lock:{clinicId} NX EX 3"
     Redis-->>S: OK
     S->>S: patient.doneAt = now()
     S->>S: duration = (doneAt - calledAt) / 60000
     S->>S: consultHistory.push(duration)
     S->>S: avgConsultTime = mean(consultHistory[-10:])
     S->>PG: INSERT INTO patient_history (clinic_id, token, name, phone, status, done_at)
-    S->>Redis: SET queue:{clinicId} (updated)
-    S->>Redis: DEL lock:{clinicId}
+    S->>Redis: "SET queue:{clinicId} (updated)"
+    S->>Redis: "DEL lock:{clinicId}"
     S->>All: queue-update (with updated avgConsultTime)
     S->>R: mark-done-success
 ```
@@ -136,13 +136,13 @@ sequenceDiagram
     participant All as All Screens (Room)
 
     Note over R: Receptionist clicks reset twice (double confirmation)
-    R->>S: reset-queue { clinicId, receptionistPin }
+    R->>S: "reset-queue { clinicId, receptionistPin }"
     S->>S: Validate PIN
-    S->>Redis: DEL queue:{clinicId}:token_counter
-    S->>Redis: SET queue:{clinicId} (Empty state, currentToken = null)
-    S->>All: queue-update (empty queue state broadcasted)
-    S->>All: queue-reset { clinicId }
-    Note over All: UI reset to welcome state; subsequent patient tokens start from 1
+    S->>Redis: "DEL queue:{clinicId}:token_counter"
+    S->>Redis: "SET queue:{clinicId} (Empty state, currentToken = null)"
+    S->>All: "queue-update (empty queue state broadcasted)"
+    S->>All: "queue-reset { clinicId }"
+    Note over All: UI reset to welcome state, subsequent patient tokens start from 1
 ```
 
 ---
