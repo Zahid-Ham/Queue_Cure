@@ -161,12 +161,44 @@ function PatientViewContent() {
       );
     };
 
+    const handlePatientDone = (data: { token: number }) => {
+      if (data.token === tokenNum) {
+        setQueueState((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            queue: prev.queue.map((p) =>
+              p.token === data.token ? { ...p, status: "done" as const } : p
+            ),
+          };
+        });
+      }
+    };
+
+    const handlePatientSkipped = (data: { token: number }) => {
+      if (data.token === tokenNum) {
+        setQueueState((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            queue: prev.queue.map((p) =>
+              p.token === data.token ? { ...p, status: "skipped" as const } : p
+            ),
+          };
+        });
+      }
+    };
+
     socket.on("state-sync", handleSync);
     socket.on("queue-update", handleUpdate);
+    socket.on("patient-done", handlePatientDone);
+    socket.on("patient-skipped", handlePatientSkipped);
 
     return () => {
       socket.off("state-sync", handleSync);
       socket.off("queue-update", handleUpdate);
+      socket.off("patient-done", handlePatientDone);
+      socket.off("patient-skipped", handlePatientSkipped);
     };
   }, [clinicId, tokenNum]);
 

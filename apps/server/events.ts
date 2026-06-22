@@ -204,6 +204,7 @@ export function registerEvents(socket: Socket, io: Server): void {
 
       await skipToken(clinicId, token);
       await broadcastQueueUpdate(io, clinicId);
+      io.to(clinicId).emit('patient-skipped', { token });
     } catch (error: any) {
       socket.emit('queue-error', { message: error.message || 'Failed to skip token' });
     }
@@ -273,6 +274,7 @@ export function registerEvents(socket: Socket, io: Server): void {
       }
 
       await broadcastQueueUpdate(io, clinicId);
+      io.to(clinicId).emit('patient-done', { token });
       socket.emit('mark-done-success', { token });
     } catch (error: any) {
       socket.emit('queue-error', { message: error.message || 'Failed to mark patient as done' });
