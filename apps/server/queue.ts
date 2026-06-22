@@ -518,6 +518,23 @@ export function calcWaitTime(
   };
 }
 
+export async function resetQueue(clinicId: string): Promise<QueueState> {
+  ClinicIdSchema.parse(clinicId);
+  await redis.del(`queue:${clinicId}:token_counter`);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const resetState: QueueState = {
+    clinicId,
+    currentToken: null,
+    queue: [],
+    consultHistory: [],
+    avgConsultTime: 10,
+    isPaused: false,
+    lastDate: todayStr,
+  };
+  await saveQueueState(clinicId, resetState);
+  return resetState;
+}
+
 // Local Test Suite
 async function testQueue() {
   const clinicId = `test-clinic-${Date.now()}`;

@@ -12,6 +12,7 @@ import {
   markDone,
   recallToken,
   setPauseState,
+  resetQueue,
 } from './queue';
 
 import { db } from './db';
@@ -83,6 +84,11 @@ const RecallTokenSchema = z.object({
 const PauseQueueSchema = z.object({
   clinicId: z.string().min(1),
   pause: z.boolean(),
+  receptionistPin: z.string(),
+});
+
+const ResetQueueSchema = z.object({
+  clinicId: z.string().min(1),
   receptionistPin: z.string(),
 });
 
@@ -330,6 +336,24 @@ export function registerEvents(socket: Socket, io: Server): void {
       io.to(clinicId).emit('queue-paused', { isPaused: pause });
     } catch (error: any) {
       socket.emit('queue-error', { message: error.message || 'Failed to change queue pause state' });
+    }
+  });
+
+  // ── Reset Queue ─────────────────────────────────────────────────────────
+  socket.on('reset-queue', async (payload: unknown) => {
+    try {
+      const { clinicId, receptionistPin } = ResetQueueSchema.parse(payload);
+
+      if (!(await validatePin(clinicId, receptionistPin))) {
+        socket.emit('queue-error', { message: 'Invalid PIN' });
+        return;
+      }
+
+      await resetQueue(clinicId);
+      await broadcastQueueUpdate(io, clinicId);
+      io.to(clinicId).emit('queue-reset', { clinicId });
+    } catch (error: any) {
+      socket.emit('queue-error', { message: error.message || 'Failed to reset queue' });
     }
   });
 

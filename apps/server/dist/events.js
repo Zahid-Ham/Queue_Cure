@@ -62,6 +62,10 @@ const PauseQueueSchema = zod_1.z.object({
     pause: zod_1.z.boolean(),
     receptionistPin: zod_1.z.string(),
 });
+const ResetQueueSchema = zod_1.z.object({
+    clinicId: zod_1.z.string().min(1),
+    receptionistPin: zod_1.z.string(),
+});
 // ─── Helpers ────────────────────────────────────────────────────────────────
 /** Broadcasts full queue state to all sockets in the clinic room */
 async function broadcastQueueUpdate(io, clinicId) {
@@ -276,6 +280,22 @@ function registerEvents(socket, io) {
         }
         catch (error) {
             socket.emit('queue-error', { message: error.message || 'Failed to change queue pause state' });
+        }
+    });
+    // ── Reset Queue ─────────────────────────────────────────────────────────
+    socket.on('reset-queue', async (payload) => {
+        try {
+            const { clinicId, receptionistPin } = ResetQueueSchema.parse(payload);
+            if (!(await validatePin(clinicId, receptionistPin))) {
+                socket.emit('queue-error', { message: 'Invalid PIN' });
+                return;
+            }
+            await (0, queue_1.resetQueue)(clinicId);
+            await broadcastQueueUpdate(io, clinicId);
+            io.to(clinicId).emit('queue-reset', { clinicId });
+        }
+        catch (error) {
+            socket.emit('queue-error', { message: error.message || 'Failed to reset queue' });
         }
     });
     // ── Change Display Settings ──────────────────────────────────────────────

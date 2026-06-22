@@ -85,6 +85,7 @@ export default function ReceptionistDashboard() {
   const [tvLang, setTvLang] = useState<"en" | "hi">("en");
   const [tvVoice, setTvVoice] = useState(true);
   const [tvPrivacy, setTvPrivacy] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const handleTvSettingChange = (langVal: "en" | "hi", voiceVal: boolean, privacyVal: boolean) => {
     socket.emit("change-display-settings", {
@@ -93,6 +94,20 @@ export default function ReceptionistDashboard() {
       isSpeechEnabled: voiceVal,
       isPrivacyMode: privacyVal,
     });
+  };
+
+  const handleResetQueue = () => {
+    if (!showResetConfirm) {
+      setShowResetConfirm(true);
+      return;
+    }
+    socket.emit("reset-queue", {
+      clinicId: queueState.clinicId,
+      receptionistPin: pin
+    });
+    setShowResetConfirm(false);
+    setIsSettingsOpen(false);
+    addToast(lang === "en" ? "Queue & tokens reset successfully!" : "कतार और टोकन सफलतापूर्वक रीसेट किए गए!", "success");
   };
 
   useEffect(() => {
@@ -1366,7 +1381,7 @@ export default function ReceptionistDashboard() {
                 WebkitBackdropFilter: "blur(4px)",
                 zIndex: 100,
               }}
-              onClick={() => setIsSettingsOpen(false)}
+              onClick={() => { setIsSettingsOpen(false); setShowResetConfirm(false); }}
             />
             {/* Drawer Panel */}
             <motion.div
@@ -1402,7 +1417,7 @@ export default function ReceptionistDashboard() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setIsSettingsOpen(false)}
+                  onClick={() => { setIsSettingsOpen(false); setShowResetConfirm(false); }}
                   style={{
                     height: 32, width: 32, borderRadius: 8,
                     border: "1px solid var(--border)", background: "var(--surface-2)",
@@ -1568,6 +1583,61 @@ export default function ReceptionistDashboard() {
                         {tvPrivacy ? (lang === "en" ? "Mask Name" : "नाम छिपाएं") : (lang === "en" ? "Show Name" : "नाम दिखाएं")}
                       </button>
                     </div>
+                  </div>
+                </div>
+
+                <div style={{ height: 1, background: "var(--border)" }} />
+
+                {/* 3. Reset Queue & Tokens */}
+                <div>
+                  <h4 style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--rose)", marginBottom: 12 }}>
+                    ⚠️ {lang === "en" ? "Danger Zone" : "खतरे का क्षेत्र"}
+                  </h4>
+                  <div style={{ background: "rgba(220, 38, 38, 0.05)", borderRadius: 12, border: "1px solid rgba(220, 38, 38, 0.2)", padding: 16 }}>
+                    <p style={{ fontSize: 12, color: "var(--text-2)", margin: "0 0 12px", lineHeight: "1.5" }}>
+                      {lang === "en" 
+                        ? "This will clear all current active patients and reset the token sequence back to 1." 
+                        : "यह वर्तमान सक्रिय रोगियों को साफ करेगा और टोकन संख्या को 1 पर रीसेट कर देगा।"}
+                    </p>
+                    <button
+                      onClick={handleResetQueue}
+                      style={{
+                        width: "100%",
+                        padding: "10px 0",
+                        borderRadius: 8,
+                        background: showResetConfirm ? "var(--rose)" : "transparent",
+                        color: showResetConfirm ? "#fff" : "var(--rose)",
+                        fontWeight: 700,
+                        fontSize: 13,
+                        border: showResetConfirm ? "none" : "1px solid var(--rose)",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease-in-out",
+                        boxShadow: showResetConfirm ? "0 4px 12px rgba(220, 38, 38, 0.2)" : "none",
+                      }}
+                    >
+                      {showResetConfirm 
+                        ? (lang === "en" ? "⚠️ Click again to confirm reset!" : "⚠️ पुष्टि करने के लिए फिर से क्लिक करें!")
+                        : (lang === "en" ? "Reset Queue & Tokens" : "कतार और टोकन रीसेट करें")}
+                    </button>
+                    {showResetConfirm && (
+                      <button
+                        onClick={() => setShowResetConfirm(false)}
+                        style={{
+                          width: "100%",
+                          padding: "6px 0",
+                          marginTop: 8,
+                          borderRadius: 8,
+                          background: "transparent",
+                          color: "var(--text-3)",
+                          fontWeight: 600,
+                          fontSize: 11,
+                          border: "none",
+                          cursor: "pointer"
+                        }}
+                      >
+                        {lang === "en" ? "Cancel" : "रद्द करें"}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1919,7 +1989,7 @@ export default function ReceptionistDashboard() {
                               </span>
                               {patient.doneAt && (
                                 <span style={{ fontSize: 11, color: "var(--text-3)" }}>
-                                  Time: {new Date(patient.doneAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                  Time: {new Date(Number(patient.doneAt)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                 </span>
                               )}
                             </div>

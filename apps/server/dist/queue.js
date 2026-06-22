@@ -14,6 +14,7 @@ exports.setAvgTime = setAvgTime;
 exports.recallToken = recallToken;
 exports.setPauseState = setPauseState;
 exports.calcWaitTime = calcWaitTime;
+exports.resetQueue = resetQueue;
 const ioredis_1 = __importDefault(require("ioredis"));
 const zod_1 = require("zod");
 // Simple in-memory Redis fallback to allow running tests and development without a running Redis server
@@ -422,6 +423,22 @@ function calcWaitTime(position, history, fallback) {
         max,
         label: `~${min}–${max} min`,
     };
+}
+async function resetQueue(clinicId) {
+    ClinicIdSchema.parse(clinicId);
+    await redis.del(`queue:${clinicId}:token_counter`);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const resetState = {
+        clinicId,
+        currentToken: null,
+        queue: [],
+        consultHistory: [],
+        avgConsultTime: 10,
+        isPaused: false,
+        lastDate: todayStr,
+    };
+    await saveQueueState(clinicId, resetState);
+    return resetState;
 }
 // Local Test Suite
 async function testQueue() {
