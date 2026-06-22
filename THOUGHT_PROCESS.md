@@ -14,13 +14,19 @@ To solve this, both `callNext` and `markDone` implement a **Redis-based atomic M
 - If the write returns `null` (lock already held), the server immediately rejects the request with `{ error: 'busy' }`.
 - The mutation is wrapped in `try...finally` to guarantee lock release even if an exception is thrown, preventing a 3-second lockout.
 
-**Why not Lua scripts?** For single-key operations, `SET NX + DEL` is equivalent to a Lua transaction and avoids the complexity of inline Lua parsing in Redis. Lua would only be necessary for multi-key atomic operations (e.g., swapping two keys).
+---
 
-**Multi-Doctor Extension:** To support multiple concurrent doctors, the lock key would be `lock:{clinicId}:{doctorId}`, and the QueueState would contain a `doctors: DoctorSlot[]` array. Each doctor would have their own serving slot and history.
+## 2. PostgreSQL Persistent Auditing
+
+As clinics scale, keeping hundreds of checked-out or skipped patients in Redis would bloat memory usage and make queries for past history logs inefficient. 
+We partitioned patient data storage:
+- **Redis (Fast / Volatile State)**: Handles the active waiting and serving queue. It supports high-frequency reads and writes for real-time screens.
+- **PostgreSQL (Structured / Persistent State)**: Completed and skipped patients are logged to the `patient_history` table. This keeps Redis small and guarantees long-term durability of historical logs.
+- **Rest API (`GET /api/history`)**: The receptionist retrieves this history on demand. Converting epoch timestamps correctly on the client-side prevents "Invalid Date" parsing issues while preserving numeric epoch sorting speed.
 
 ---
 
-## 2. Dynamic Wait Time Estimation
+## 3. Dynamic Wait Time Estimation
 
 Rather than hardcoding wait times or relying on a static setting, QueueCure computes an estimated wait range from **real consultation duration data**:
 
@@ -30,11 +36,17 @@ Rather than hardcoding wait times or relying on a static setting, QueueCure comp
 - **Formula**: `estimated = position × avg`, where `margin = estimated × 0.40`. The displayed range is `[round(estimated - margin), round(estimated + margin)]`.
 - **Data Source Label**: The patient view shows whether the estimate is based on real data ("Based on N real consultations") or the fallback ("Based on receptionist estimate"), building trust through transparency.
 
-**Why record duration at mark-done, not at call-next?** Recording duration when `callNext` fires would measure receptionist latency (time between calls), not actual consultation time. `markDone` records the time from `calledAt` to `doneAt`, which is the true consultation window.
+---
+
+## 4. Double-Confirmation Danger Zone Resets
+
+Reinitializing a queue or resetting token sequences back to 1 is a destructive operation. If a receptionist clicks it accidentally during active clinic hours, it would wipe the current session.
+- **Double Confirmation state hook**: Clicking "Reset Queue & Tokens" toggles a `showResetConfirm` flag in UI. The button changes styling to an alert red danger banner displaying "⚠️ Click again to confirm reset!" with a "Cancel" button.
+- **Socket event authentication**: The server requires the receptionist's security PIN validation on the `reset-queue` socket event before clearing Redis keys, preventing unauthorized queue manipulation.
 
 ---
 
-## 3. Priority Queue
+## 5. Priority Queue
 
 Real clinics must handle emergencies, elderly patients, and pre-booked appointments differently:
 
@@ -49,7 +61,7 @@ Real clinics must handle emergencies, elderly patients, and pre-booked appointme
 
 ---
 
-## 4. Edge Cases Handled
+## 6. Edge Cases Handled
 
 - **Empty queue on call-next**: Returns `{ error: 'empty' }` which fires a `queue-error` event, doing nothing to state.
 - **All patients skipped**: Active queue shows empty state gracefully; skipped patient log renders at the bottom of the receptionist console.
@@ -62,7 +74,7 @@ Real clinics must handle emergencies, elderly patients, and pre-booked appointme
 
 ---
 
-## 5. Architectural Decisions
+## 7. Architectural Decisions
 
 ### Socket.IO over Raw WebSockets
 Socket.IO provides automatic reconnection with exponential backoff, room-based broadcasting (so `clinic-001` events never leak to `clinic-002`), event-based messaging with named payloads, and middleware support. Raw WebSockets would require building all of this manually.
@@ -89,7 +101,7 @@ The explicit **"Mark as Done"** button lets the receptionist record the true con
 
 ---
 
-## 6. Privacy Design Decisions
+## 8. Privacy Design Decisions
 
 - **No patient names on /display**: The TV screen shows only token numbers and wait times. Any bystander or visitor in the waiting room should not be able to identify who is being called or their position. This is a deliberate HIPAA-aligned design choice.
 - **Names only on /receptionist and /patient**: The receptionist needs names for coordination. The patient's own mobile view shows their name (they scanned their own QR code).
@@ -97,17 +109,7 @@ The explicit **"Mark as Done"** button lets the receptionist record the true con
 
 ---
 
-## 7. PWA Offline Behavior
-
-The `/patient` route is registered as a PWA via `next-pwa`. The service worker:
-- Caches the app shell (HTML, CSS, JS) on first load.
-- If the patient loses signal mid-wait, the cached shell loads immediately with a "Reconnecting..." indicator.
-- Socket.IO's built-in reconnection logic (exponential backoff, max retries) handles the reconnect.
-- On reconnect, `join-clinic` is emitted, triggering a `state-sync` — the patient view is instantly accurate again.
-
----
-
-## 8. Future Scope
+## 9. Future Scope
 
 - **Multi-Doctor / Room Routing**: Support multiple active doctors and consult rooms under a single clinic dashboard. Each doctor would have their own "Call Next" button and serving slot.
 - **SMS / WhatsApp Alerts**: Notify patients when they are next in line if they close the browser. Integrate Twilio or the WhatsApp Business API.

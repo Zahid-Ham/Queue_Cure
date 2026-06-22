@@ -31,11 +31,12 @@ All three clients join the same **clinic room** via Socket.IO. Events are broadc
 | `join-clinic` | `{ clinicId }` | None | Joins a Socket.IO room and receives `state-sync` |
 | `add-patient` | `{ clinicId, name, phone?, priority? }` | None | Adds a patient; priority ones are sorted to the front |
 | `call-next` | `{ clinicId, receptionistPin }` | PIN | Atomically advances the queue using a Redis mutex |
-| `mark-done` | `{ clinicId, token, receptionistPin }` | PIN | Marks serving patient as done; records real duration in `consultHistory` |
-| `skip-token` | `{ clinicId, token, receptionistPin }` | PIN | Marks a waiting patient as skipped |
+| `mark-done` | `{ clinicId, token, receptionistPin }` | PIN | Marks serving patient as done; records real duration in `consultHistory` & PostgreSQL |
+| `skip-token` | `{ clinicId, token, receptionistPin }` | PIN | Marks a waiting patient as skipped & logs to PostgreSQL |
 | `undo-call` | `{ clinicId, receptionistPin }` | PIN | Reverts the last call (within 5-second window only) |
 | `recall-token` | `{ clinicId, receptionistPin }` | PIN | Re-announces current serving token without advancing queue |
 | `pause-queue` | `{ clinicId, pause: boolean, receptionistPin }` | PIN | Pauses or resumes queue; blocks `call-next` while paused |
+| `reset-queue` | `{ clinicId, receptionistPin }` | PIN | Danger Zone command: deletes token counter, clears queue lists, resets token sequence to 1 |
 | `set-avg-time` | `{ clinicId, minutes, receptionistPin }` | PIN | Sets the fallback average consultation time |
 
 ---
@@ -48,6 +49,7 @@ All three clients join the same **clinic room** via Socket.IO. Events are broadc
 | `queue-update` | Entire clinic room | `{ currentToken, queue, avgWait, isPaused, consultHistory, avgConsultTime, lastUpdated }` | Fired after every state mutation |
 | `token-called` | Entire clinic room | `{ token, name, estimatedWait, isRecall? }` | Triggers chime on TV; triggers undo banner on receptionist |
 | `queue-paused` | Entire clinic room | `{ isPaused: boolean }` | Dedicated event for pause state so display can show overlay immediately |
+| `queue-reset` | Entire clinic room | `{ clinicId }` | Fired when queue is wiped & reset |
 | `patient-added` | Emitting socket only | Full `Patient` object | Triggers QR code modal on receptionist screen |
 | `mark-done-success` | Emitting socket only | `{ token }` | Confirms successful mark-done operation |
 | `recall-success` | Emitting socket only | `{ token, name }` | Confirms recall was sent |
@@ -101,13 +103,14 @@ sequenceDiagram
     S->>Redis: DEL lock:{clinicId}
 ```
 
-### 3. Mark Done (Real Duration Recording)
+### 3. Mark Done (PostgreSQL Persist & Real Duration Recording)
 
 ```mermaid
 sequenceDiagram
     participant R as Receptionist
     participant S as Server
     participant Redis
+    participant PG as PostgreSQL
 
     R->>S: mark-done { clinicId, token, receptionistPin }
     S->>Redis: SET lock:{clinicId} NX EX 3
@@ -116,69 +119,30 @@ sequenceDiagram
     S->>S: duration = (doneAt - calledAt) / 60000
     S->>S: consultHistory.push(duration)
     S->>S: avgConsultTime = mean(consultHistory[-10:])
+    S->>PG: INSERT INTO patient_history (clinic_id, token, name, phone, status, done_at)
     S->>Redis: SET queue:{clinicId} (updated)
     S->>Redis: DEL lock:{clinicId}
     S->>All: queue-update (with updated avgConsultTime)
     S->>R: mark-done-success
 ```
 
-### 4. Network Disconnect → Reconnect → State Sync
-
-```mermaid
-sequenceDiagram
-    participant C as Client (any screen)
-    participant S as Server
-    participant Redis
-
-    Note over C: Network drops
-    C->>S: (connection lost)
-    Note over C: Socket.IO auto-reconnects
-    C->>S: join-clinic { clinicId }
-    S->>Redis: GET queue:{clinicId}
-    Redis-->>S: Full QueueState JSON
-    S->>C: state-sync (full state restore)
-    Note over C: UI instantly reflects current queue
-```
-
-### 5. Priority Patient Added
+### 4. Reset Queue & Tokens (Danger Zone)
 
 ```mermaid
 sequenceDiagram
     participant R as Receptionist
     participant S as Server
     participant Redis
-    participant All as All Screens
+    participant All as All Screens (Room)
 
-    R->>S: add-patient { name, priority: true }
-    S->>Redis: INCR queue:{clinicId}:token_counter
-    Redis-->>S: tokenNumber
-    S->>S: applyPrioritySort(queue)
-    Note over S: Priority patients sorted before normal waiting patients
-    S->>Redis: SET queue:{clinicId} (sorted state)
-    S->>All: queue-update (priority patient at top of waiting list)
-    S->>R: patient-added (triggers QR modal)
-```
-
-### 6. Queue Paused
-
-```mermaid
-sequenceDiagram
-    participant R as Receptionist
-    participant S as Server
-    participant All as All Screens
-
-    R->>S: pause-queue { pause: true, receptionistPin }
-    S->>S: state.isPaused = true
-    S->>All: queue-update { isPaused: true, ... }
-    S->>All: queue-paused { isPaused: true }
-    Note over All: Display shows fullscreen PAUSED overlay
-    Note over All: Patient view shows "Queue Paused" banner
-    Note over R: Receptionist sees amber pause banner
-
-    R->>S: pause-queue { pause: false, receptionistPin }
-    S->>All: queue-update { isPaused: false }
-    S->>All: queue-paused { isPaused: false }
-    Note over All: Normal view restored
+    Note over R: Receptionist clicks reset twice (double confirmation)
+    R->>S: reset-queue { clinicId, receptionistPin }
+    S->>S: Validate PIN
+    S->>Redis: DEL queue:{clinicId}:token_counter
+    S->>Redis: SET queue:{clinicId} (Empty state, currentToken = null)
+    S->>All: queue-update (empty queue state broadcasted)
+    S->>All: queue-reset { clinicId }
+    Note over All: UI reset to welcome state; subsequent patient tokens start from 1
 ```
 
 ---
@@ -209,19 +173,8 @@ interface QueueState {
   consultHistory: number[];   // Last 10 real consultation durations (minutes)
   avgConsultTime: number;     // Rolling mean of consultHistory; fallback to receptionist-set value
   isPaused: boolean;
+  lastDate?: string;          // Calendar date YYYY-MM-DD
 }
-```
-
-### Wait Time Formula
-```
-avg = consultHistory.length >= 3
-  ? mean(consultHistory[-10:])
-  : receptionist-set fallback (default 10 min)
-
-estimated = position × avg
-margin = estimated × 0.40
-range = [round(estimated - margin), round(estimated + margin)]
-display = "~{min}–{max} min"
 ```
 
 ---
