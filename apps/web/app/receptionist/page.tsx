@@ -144,6 +144,12 @@ export default function ReceptionistDashboard() {
            String(p.token).includes(searchQuery)
   );
 
+  const filteredDonePatients = donePatients.filter(
+    (p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+           (p.phone && p.phone.includes(searchQuery)) ||
+           String(p.token).includes(searchQuery)
+  );
+
   // Dynamic wait time calculation for receptionist
   const getEstWaitTime = (position: number) => {
     const history = queueState.consultHistory;
@@ -1165,6 +1171,40 @@ export default function ReceptionistDashboard() {
                             {patient.name}
                           </span>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Served Patients */}
+              {filteredDonePatients.length > 0 && (
+                <div style={{ marginTop: 32, borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+                  <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-3)", marginBottom: 12 }}>
+                    {lang === "en" ? "Served Patients Today" : "आज के पूर्ण मरीज"}
+                  </h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {filteredDonePatients.map((patient) => (
+                      <div
+                        key={patient.token}
+                        style={{
+                          borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface-2)",
+                          padding: 12, display: "flex", alignItems: "center", justifyContent: "space-between",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <span style={{ fontSize: 12, color: "var(--emerald)", fontWeight: 750 }}>
+                            ✓ #{patient.token}
+                          </span>
+                          <span style={{ fontSize: 13, color: "var(--text-2)", fontWeight: 650 }}>
+                            {patient.name}
+                          </span>
+                        </div>
+                        {patient.doneAt && (
+                          <span style={{ fontSize: 11, color: "var(--text-3)" }}>
+                            {new Date(patient.doneAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>

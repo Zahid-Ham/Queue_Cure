@@ -88,6 +88,7 @@ export interface QueueState {
   consultHistory: number[];
   avgConsultTime: number;
   isPaused: boolean;
+  lastDate?: string;
 }
 
 // Zod validation schemas
@@ -101,7 +102,12 @@ const HistorySchema = z.array(z.number());
 
 // Helpers
 async function saveQueueState(clinicId: string, state: QueueState): Promise<void> {
-  await redis.set(`queue:${clinicId}`, JSON.stringify(state));
+  const todayStr = new Date().toISOString().split('T')[0];
+  const stateWithDate = {
+    ...state,
+    lastDate: state.lastDate || todayStr,
+  };
+  await redis.set(`queue:${clinicId}`, JSON.stringify(stateWithDate));
 }
 
 /**
@@ -124,6 +130,8 @@ export async function getQueue(clinicId: string): Promise<QueueState> {
   ClinicIdSchema.parse(clinicId);
 
   const data = await redis.get(`queue:${clinicId}`);
+  const todayStr = new Date().toISOString().split('T')[0];
+
   if (!data) {
     return {
       clinicId,
@@ -132,12 +140,36 @@ export async function getQueue(clinicId: string): Promise<QueueState> {
       consultHistory: [],
       avgConsultTime: 10, // Default fallback
       isPaused: false,
+      lastDate: todayStr,
     };
   }
 
   const parsed = JSON.parse(data) as QueueState;
-  // Ensure isPaused exists for older persisted states
   if (parsed.isPaused === undefined) parsed.isPaused = false;
+
+  // If the date in state is different from today, trigger a reset
+  if (parsed.lastDate && parsed.lastDate !== todayStr) {
+    console.log(`[QueueCure] New calendar day detected (${todayStr}). Resetting token counter and queue for: ${clinicId}`);
+    await redis.del(`queue:${clinicId}:token_counter`);
+    const resetState: QueueState = {
+      clinicId,
+      currentToken: null,
+      queue: [],
+      consultHistory: parsed.consultHistory || [], // preserve historic times for average wait prediction
+      avgConsultTime: parsed.avgConsultTime || 10,
+      isPaused: false,
+      lastDate: todayStr,
+    };
+    await saveQueueState(clinicId, resetState);
+    return resetState;
+  }
+
+  // Ensure lastDate is populated on older records
+  if (!parsed.lastDate) {
+    parsed.lastDate = todayStr;
+    await saveQueueState(clinicId, parsed);
+  }
+
   return parsed;
 }
 
